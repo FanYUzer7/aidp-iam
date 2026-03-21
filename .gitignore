@@ -29,3 +29,6 @@ Thumbs.db
 # Temp
 *.tmp
 *.log
+*.tar.gz
+helm-*.tar.gz
+*.litcoffee

@@ -347,7 +347,7 @@ for rname in viewer editor billing-admin; do
     -H "Content-Type: application/json" \
     -d "{\"name\":\"$rname\",\"description\":\"$rname role for testing\"}" \
     "${BASE_URL}/api/v1/data-agent/roles" 2>/dev/null)
-  assert "Create role ($rname)" "200" "$CODE"
+  assert "Create role ($rname)" "201" "$CODE"
 done
 
 # 6c: 获取所有自定义 role UUID
@@ -508,14 +508,14 @@ if [ -n "$GROUP_ID" ]; then
     -H "Content-Type: application/json" \
     -d '{"name":"dev-team-v2","roles":["normal-user"]}' \
     "${BASE_URL}/api/v1/data-agent/groups/${GROUP_ID}" 2>/dev/null)
-  assert "Update group (rename + add role)" "200" "$GRP_UPD_CODE"
+  assert "Update group (rename + add role)" "204" "$GRP_UPD_CODE"
 fi
 
 # 8e: 删除 Group
 if [ -n "$GROUP_ID" ]; then
   GRP_DEL_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE -H "$TA_AUTH" \
     "${BASE_URL}/api/v1/data-agent/groups/${GROUP_ID}" 2>/dev/null)
-  assert "Delete group" "200" "$GRP_DEL_CODE"
+  assert "Delete group" "204" "$GRP_DEL_CODE"
 fi
 
 # 8f: normal-user 不能管理 Group
