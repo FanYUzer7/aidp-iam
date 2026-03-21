@@ -1,7 +1,29 @@
 # 前端 UI 对接 API 参考
 
-> 所有业务 API 均通过 AgentGateway（`http://localhost:8080`）访问。
-> Gateway 会自动对受保护路由执行 OPA ext-authz 鉴权，前端只需在请求头带 `Authorization: Bearer <token>`。
+## API 地址说明
+
+前端部署在 K8s 内（nginx 容器），nginx 已配置反向代理到 IAM Gateway 和 Keycloak。
+**前端代码中所有 API 请求使用相对路径，不需要加域名或端口。**
+
+```
+前端代码中:
+  fetch('/api/v1/tenants')          ✅ 相对路径
+  fetch('/realms/master/...')       ✅ 相对路径
+
+不要写:
+  fetch('http://localhost:8080/api/v1/tenants')   ❌
+```
+
+nginx 会自动将请求代理到 K8s 内部的 Gateway Service。
+
+如果用 curl 从集群外测试，需要加服务器地址：
+
+```bash
+curl http://<server-ip>:30080/api/v1/tenants       # NodePort
+curl http://localhost:8080/api/v1/tenants           # port-forward
+```
+
+Gateway 会自动对受保护路由执行 OPA ext-authz 鉴权，前端只需在请求头带 `Authorization: Bearer <token>`。
 
 ---
 
@@ -21,11 +43,19 @@
 
 ```
 grant_type=password
-client_id=idb-proxy-client
-client_secret=<从 K8s Secret keycloak-idb-proxy-client 获取>
+client_id=admin-cli
 username=super-admin
 password=<密码>
 ```
+
+> 使用 `admin-cli`（Keycloak 内置 public client），**不需要 client_secret**，安全适用于 SPA 前端。
+>
+> 如果后端服务间调用（非浏览器），可使用 `idb-proxy-client` + secret（client_credentials grant）：
+> ```bash
+> # 获取 client_secret（在服务器上执行）
+> kubectl -n keycloak get secret keycloak-idb-proxy-client \
+>   -o jsonpath='{.data.client-secret}' | base64 -d
+> ```
 
 **响应：**
 
@@ -33,7 +63,7 @@ password=<密码>
 {
   "access_token": "eyJhbG...",
   "refresh_token": "eyJhbG...",
-  "expires_in": 60,
+  "expires_in": 300,
   "token_type": "Bearer"
 }
 ```
@@ -47,16 +77,30 @@ password=<密码>
 | **URL** | `/realms/{realm}/protocol/openid-connect/auth` |
 | **需要 Token** | 否 |
 
-**Redirect 参数：**
+**Redirect URL 构造：**
 
-```
-response_type=code
-client_id=data-agent-client
-redirect_uri=<前端回调 URL>
-scope=openid profile email
+```javascript
+// 前端代码示例
+const realm = 'data-agent';
+const redirectUri = `${window.location.origin}/login/callback`;  // 回调页面
+
+const loginUrl = `/realms/${realm}/protocol/openid-connect/auth`
+  + `?response_type=code`
+  + `&client_id=data-agent`
+  + `&redirect_uri=${encodeURIComponent(redirectUri)}`
+  + `&scope=openid profile email`;
+
+window.location.href = loginUrl;
 ```
 
-登录成功后 Keycloak 回调 `redirect_uri?code=xxx`，前端用 code 换 token：
+> **redirect_uri 说明：**
+> - 必须是前端路由中存在的页面（如 `/login/callback`）
+> - 该页面负责接收 URL 中的 `code` 参数并换取 token
+> - 必须与 Keycloak client 配置的 `Valid Redirect URIs` 匹配
+> - 创建租户时 `data-agent` client 的 redirectUris 已设为 `["*"]`（通配），所以任意 URL 都可以
+> - 实际地址示例：`http://10.0.0.1:30080/login/callback`
+
+**回调页面收到 code 后，换取 token：**
 
 | 项目 | 内容 |
 |------|------|
@@ -66,10 +110,29 @@ scope=openid profile email
 
 ```
 grant_type=authorization_code
-client_id=data-agent-client
-client_secret=<从 K8s Secret keycloak-{realm}-client 获取>
-code=<authorization code>
-redirect_uri=<同上>
+client_id=data-agent
+code=<URL 中的 code 参数>
+redirect_uri=<和上面完全相同的 redirect_uri>
+```
+
+> `data-agent` 是 public client，**不需要 client_secret**。
+
+```javascript
+// 前端回调页面代码示例
+const code = new URLSearchParams(window.location.search).get('code');
+const redirectUri = `${window.location.origin}/login/callback`;
+
+const resp = await fetch(`/realms/${realm}/protocol/openid-connect/token`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  body: new URLSearchParams({
+    grant_type: 'authorization_code',
+    client_id: 'data-agent',
+    code: code,
+    redirect_uri: redirectUri,
+  })
+});
+const { access_token, refresh_token } = await resp.json();
 ```
 
 ### 1.3 Token 刷新
@@ -81,30 +144,30 @@ redirect_uri=<同上>
 
 ```
 grant_type=refresh_token
-client_id=<client_id>
-client_secret=<client_secret>
+client_id=admin-cli                    (super-admin)
+  或 client_id=data-agent              (tenant user)
 refresh_token=<refresh_token>
 ```
+
+> Public client 刷新 token 也不需要 client_secret。
 
 ### 1.4 Token 结构（解码后）
 
 ```json
 {
-  "iss": "http://localhost/realms/data-agent",
+  "iss": "http://localhost:8080/realms/data-agent",
   "sub": "user-uuid",
   "preferred_username": "tenant-admin",
   "email": "tenant-admin@data-agent.local",
+  "realm_id": "realm-uuid",
   "roles": [
-    {"id": "role-uuid-1", "name": "tenant-admin"},
-    {"id": "role-uuid-2", "name": "normal-user"}
-  ],
-  "realm_access": {
-    "roles": ["tenant-admin", "default-roles-data-agent", ...]
-  }
+    {"id": "role-uuid-1", "name": "tenant-admin"}
+  ]
 }
 ```
 
-> 前端优先使用 `roles` 字段（`[{id, name}]` 结构），其中 `id` 是角色 UUID，`name` 是角色名。
+> 前端使用 `roles` 字段（`[{id, name}]` 结构），其中 `id` 是角色 UUID，`name` 是角色名。
+> `iss` 中的 realm 名就是 tenant-id。
 
 ---
 
