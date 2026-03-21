@@ -40,7 +40,7 @@ OPA_NS="opa"
 AGENTGATEWAY_NS="agentgateway-system"
 HTTPBIN_NS="httpbin"
 
-KIND_NODE_IMAGE="kindest/node:v1.35.0"
+KIND_NODE_IMAGE="${KIND_NODE_IMAGE:-}"
 AGENTGATEWAY_CHART_VERSION="v2.2.1"
 GATEWAY_API_VERSION="v1.4.0"
 
@@ -290,16 +290,32 @@ if [ "$USE_KIND" = true ] || [ "$EXISTING_KIND" = true ]; then
     # Default Kind mode: create cluster
     log "Step 1: Creating Kind cluster '$CLUSTER_NAME'..."
 
-    KIND_NODE_TAR="$IMAGES_DIR/kindest_node_v1.35.0.tar"
-    if [ -f "$KIND_NODE_TAR" ]; then
-      if ! docker image inspect "$KIND_NODE_IMAGE" &>/dev/null; then
-        log "  Loading Kind node image from $KIND_NODE_TAR..."
-        docker load -i "$KIND_NODE_TAR"
+    # Try loading Kind node image from offline tar
+    KIND_NODE_TAR=$(ls "$IMAGES_DIR"/kindest_node_*.tar 2>/dev/null | head -1)
+    if [ -n "$KIND_NODE_TAR" ] && [ -f "$KIND_NODE_TAR" ]; then
+      log "  Loading Kind node image from $KIND_NODE_TAR..."
+      docker load -i "$KIND_NODE_TAR" 2>/dev/null || true
+    fi
+
+    # Auto-detect Kind node image if not set
+    if [ -z "$KIND_NODE_IMAGE" ]; then
+      AVAILABLE_IMAGES=($(docker images --format '{{.Repository}}:{{.Tag}}' | grep '^kindest/node:' | sort -Vr))
+      if [ ${#AVAILABLE_IMAGES[@]} -eq 0 ]; then
+        err "No kindest/node image found. Pull one first: docker pull kindest/node:v1.31.6"
+      elif [ ${#AVAILABLE_IMAGES[@]} -eq 1 ]; then
+        KIND_NODE_IMAGE="${AVAILABLE_IMAGES[0]}"
+        log "  Using Kind node image: $KIND_NODE_IMAGE"
       else
-        log "  Kind node image already loaded"
+        echo -e "${YELLOW}Available Kind node images:${NC}"
+        for i in "${!AVAILABLE_IMAGES[@]}"; do
+          echo "  $((i+1)). ${AVAILABLE_IMAGES[$i]}"
+        done
+        echo -n "Select [1]: "
+        read -r CHOICE
+        CHOICE=${CHOICE:-1}
+        KIND_NODE_IMAGE="${AVAILABLE_IMAGES[$((CHOICE-1))]}"
+        log "  Selected: $KIND_NODE_IMAGE"
       fi
-    else
-      warn "  Kind node image tar not found, assuming it's already available"
     fi
 
     if kind get clusters 2>/dev/null | grep -q "^${CLUSTER_NAME}$"; then
