@@ -15,7 +15,7 @@ keycloak:
       cpu: 500m
       memory: 1700Mi
   config:
-    hostname: "http://localhost"
+    hostname: "http://localhost:8080"
     backchannelDynamic: "true"
     proxyHeaders: xforwarded
     httpEnabled: "true"

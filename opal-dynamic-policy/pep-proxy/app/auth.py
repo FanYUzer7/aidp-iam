@@ -58,6 +58,24 @@ def _decode_unverified(token: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+def _to_internal_url(url: str) -> str:
+    """
+    Convert a public-facing URL to an internal K8s URL for OIDC discovery.
+
+    Extracts the path starting from /realms/ and prepends OIDC_INTERNAL_URL.
+    This way KC_HOSTNAME can be any value (any port, any domain) and
+    internal OIDC discovery still works.
+
+    Example:
+        http://localhost:8080/realms/data-agent
+        → http://keycloak.keycloak.svc.cluster.local:8080/realms/data-agent
+    """
+    if not OIDC_INTERNAL_URL or "/realms/" not in url:
+        return url
+    path = "/realms/" + url.split("/realms/", 1)[1]
+    return OIDC_INTERNAL_URL.rstrip("/") + path
+
+
 async def _fetch_jwks(iss: str) -> dict:
     """
     Fetch JWKS for a specific token issuer via OIDC discovery.
@@ -71,11 +89,7 @@ async def _fetch_jwks(iss: str) -> dict:
     if cached and time.monotonic() < cached[1]:
         return cached[0]
 
-    # Use internal URL for discovery when OIDC_INTERNAL_URL is set (K8s environment)
-    internal_iss = iss
-    if OIDC_INTERNAL_URL and OIDC_BASE_URL and iss.startswith(OIDC_BASE_URL):
-        internal_iss = iss.replace(OIDC_BASE_URL, OIDC_INTERNAL_URL, 1)
-
+    internal_iss = _to_internal_url(iss)
     discovery_url = f"{internal_iss}/.well-known/openid-configuration"
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
@@ -85,9 +99,8 @@ async def _fetch_jwks(iss: str) -> dict:
             if not jwks_uri:
                 raise ValueError("jwks_uri missing from OIDC discovery document")
 
-            # Replace public URL with internal URL in jwks_uri too
-            if OIDC_INTERNAL_URL and OIDC_BASE_URL:
-                jwks_uri = jwks_uri.replace(OIDC_BASE_URL, OIDC_INTERNAL_URL, 1)
+            # Convert jwks_uri to internal URL too
+            jwks_uri = _to_internal_url(jwks_uri)
 
             jwks_resp = await client.get(jwks_uri)
             jwks_resp.raise_for_status()
@@ -129,17 +142,11 @@ async def verify_token(
     algorithm: str = unverified_header.get("alg", "RS256")
 
     try:
-        if algorithm.startswith("RS") and OIDC_BASE_URL:
+        if algorithm.startswith("RS") and (OIDC_BASE_URL or OIDC_INTERNAL_URL):
             # Step 2 – extract tenant_id from iss claim
             iss: str = unverified_claims.get("iss", "")
             if not iss:
                 raise HTTPException(status_code=401, detail="Missing iss claim in token")
-
-            if not iss.startswith(OIDC_BASE_URL):
-                raise HTTPException(
-                    status_code=401,
-                    detail=f"Token issuer does not match OIDC_BASE_URL: {iss}",
-                )
 
             tenant_id = _extract_tenant_from_issuer(iss)
             if not tenant_id:

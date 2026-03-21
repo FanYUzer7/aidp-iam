@@ -762,7 +762,7 @@ if [ -n "$MASTER_TOKEN" ]; then
   MASTER_CLAIMS=$(decode_jwt "$MASTER_TOKEN")
 
   M_ISS=$(echo "$MASTER_CLAIMS" | jq -r '.iss')
-  assert "master token iss" "http://localhost/realms/master" "$M_ISS"
+  assert "master token iss" "http://localhost:8080/realms/master" "$M_ISS"
 
   M_AZP=$(echo "$MASTER_CLAIMS" | jq -r '.azp')
   assert "master token azp (client)" "idb-proxy-client" "$M_AZP"
@@ -783,7 +783,7 @@ if [ -n "$SUPER_ADMIN_TOKEN" ]; then
   SA_CLAIMS=$(decode_jwt "$SUPER_ADMIN_TOKEN")
 
   SA_ISS=$(echo "$SA_CLAIMS" | jq -r '.iss')
-  assert "super-admin token iss" "http://localhost/realms/master" "$SA_ISS"
+  assert "super-admin token iss" "http://localhost:8080/realms/master" "$SA_ISS"
 
   SA_AZP=$(echo "$SA_CLAIMS" | jq -r '.azp')
   assert "super-admin token azp (client)" "idb-proxy-client" "$SA_AZP"
@@ -807,7 +807,7 @@ if [ -n "$TENANT_ADMIN_TOKEN" ]; then
   TA_CLAIMS=$(decode_jwt "$TENANT_ADMIN_TOKEN")
 
   TA_ISS=$(echo "$TA_CLAIMS" | jq -r '.iss')
-  assert "tenant-admin token iss" "http://localhost/realms/data-agent" "$TA_ISS"
+  assert "tenant-admin token iss" "http://localhost:8080/realms/data-agent" "$TA_ISS"
 
   TA_AZP=$(echo "$TA_CLAIMS" | jq -r '.azp')
   assert "tenant-admin token azp (client)" "data-agent-client" "$TA_AZP"
@@ -832,7 +832,7 @@ if [ -n "$TENANT_NORMAL_TOKEN" ]; then
   NU_CLAIMS=$(decode_jwt "$TENANT_NORMAL_TOKEN")
 
   NU_ISS=$(echo "$NU_CLAIMS" | jq -r '.iss')
-  assert "normal-user token iss" "http://localhost/realms/data-agent" "$NU_ISS"
+  assert "normal-user token iss" "http://localhost:8080/realms/data-agent" "$NU_ISS"
 
   NU_AZP=$(echo "$NU_CLAIMS" | jq -r '.azp')
   assert "normal-user token azp (client)" "data-agent-client" "$NU_AZP"
