@@ -1,225 +1,498 @@
-# 前端联调准备清单
+# Frontend Integration Checklist
 
-## 一、需要给前端的信息
+## UI Pages & API Mapping
 
-### 1. 接口文档
+### Super-admin Portal (`/super-portal`)
 
-已有完整文档：[frontend-api-reference.md](frontend-api-reference.md)
+> Super-admin is a user in the **master** realm, has full cross-tenant access.
 
-接口总览（按角色分）：
+#### Page 1: Login
 
-| 模块 | 接口 | 方法 | 路径 | 权限 |
-|------|------|------|------|------|
-| **认证** | 登录（密码） | POST | `/realms/{realm}/protocol/openid-connect/token` | 无 |
-| | 登录（OIDC 跳转） | GET | `/realms/{realm}/protocol/openid-connect/auth` | 无 |
-| | Token 刷新 | POST | `/realms/{realm}/protocol/openid-connect/token` | 无 |
-| **租户管理** | 列表 | GET | `/api/v1/tenants` | super-admin |
-| | 创建 | POST | `/api/v1/tenants` | super-admin |
-| | 删除 | DELETE | `/api/v1/tenants/{realm}` | super-admin |
-| **IDP 接入** | 创建 SAML IDP | POST | `/api/v1/{realm}/idp/saml/instances` | tenant-admin |
-| | 查看 IDP 列表 | GET | `/api/v1/{realm}/idp/saml/instances` | tenant-admin |
-| | 更新 IDP | PUT | `/api/v1/{realm}/idp/saml/instances` | tenant-admin |
-| | 删除 IDP | DELETE | `/api/v1/{realm}/idp/saml/instances/{alias}` | tenant-admin |
-| | 导入 SAML XML | POST | `/api/v1/{realm}/idp/saml/import` | tenant-admin |
-| | *列出 IDP Mappers* | GET | `/api/v1/{realm}/idp/saml/instances/{alias}/mappers` | tenant-admin |
-| | *创建 IDP Mapper* | POST | `/api/v1/{realm}/idp/saml/instances/{alias}/mappers` | tenant-admin |
-| | *更新 IDP Mapper* | PUT | `/api/v1/{realm}/idp/saml/instances/{alias}/mappers/{id}` | tenant-admin |
-| | *删除 IDP Mapper* | DELETE | `/api/v1/{realm}/idp/saml/instances/{alias}/mappers/{id}` | tenant-admin |
-| **角色管理** | 列表 | GET | `/api/v1/{realm}/roles` | tenant-admin |
-| | 创建 | POST | `/api/v1/{realm}/roles` | tenant-admin |
-| | 查看 | GET | `/api/v1/{realm}/roles/{name}` | tenant-admin |
-| | 编辑 | PUT | `/api/v1/{realm}/roles/{name}` | tenant-admin |
-| | 删除 | DELETE | `/api/v1/{realm}/roles/{name}` | tenant-admin |
-| | *按 UUID 查看* | GET | `/api/v1/{realm}/roles/by-id/{uuid}` | tenant-admin |
-| | *按 UUID 编辑* | PUT | `/api/v1/{realm}/roles/by-id/{uuid}` | tenant-admin |
-| | *按 UUID 删除* | DELETE | `/api/v1/{realm}/roles/by-id/{uuid}` | tenant-admin |
-| **组管理** | 列表 | GET | `/api/v1/{realm}/groups` | tenant-admin |
-| | 详情 | GET | `/api/v1/{realm}/groups/{id}` | tenant-admin |
-| | 创建 | POST | `/api/v1/{realm}/groups` | tenant-admin |
-| | 编辑 | PUT | `/api/v1/{realm}/groups/{id}` | tenant-admin |
-| | 删除 | DELETE | `/api/v1/{realm}/groups/{id}` | tenant-admin |
-| **用户管理** | 列表 | GET | `/api/v1/{realm}/users` | tenant-admin |
-| | 详情 | GET | `/api/v1/{realm}/users/{id}/details` | tenant-admin |
-| **策略管理** | 列表 | GET | `/api/v1/policies` | tenant-admin |
-| | 详情 | GET | `/api/v1/policies/{id}` | tenant-admin |
-| | 创建 | POST | `/api/v1/policies` | tenant-admin |
-| | 编辑 | PUT | `/api/v1/policies/{id}` | tenant-admin |
-| | 删除 | DELETE | `/api/v1/policies/{id}` | tenant-admin |
-| | 模板列表 | GET | `/api/v1/policies/templates` | tenant-admin |
-| **角色-策略绑定** | 查询绑定 | GET | `/api/v1/roles/{role_id}/policy` | tenant-admin |
-| | 创建绑定 | POST | `/api/v1/roles/{role_id}/policy` | tenant-admin |
-| | 更新绑定 | PUT | `/api/v1/roles/{role_id}/policy` | tenant-admin |
-| **权限检查** | 检查权限 | POST | `/api/v1/auth/check` | 任意 token |
-| **健康检查** | 服务状态 | GET | `/api/v1/common/health` | 任意 token |
+| UI Element | API |
+|------------|-----|
+| Username input | - |
+| Password input | - |
+| Login button | `POST /realms/master/protocol/openid-connect/token` |
 
-> *斜体* 为本次新增接口
-
-### 2. 测试环境信息
-
-需要提供给前端：
+**API Request:**
 
 ```
-Gateway 地址:       http://<server-ip>:8080  (或 port-forward 后的地址)
-Keycloak 控制台:    http://<server-ip>:8080/admin/
+POST /realms/master/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
 
-默认租户:           data-agent
-Super-admin 账号:   super-admin / SuperInit@123
-Tenant-admin 账号:  tenant-admin / TenantAdmin@123
-Normal-user 账号:   normal-user / NormalUser@123
-
-Service Client:     idb-proxy-client (secret 在 K8s Secret keycloak-idb-proxy-client 中)
-Tenant Client:      data-agent-client (secret 在 K8s Secret keycloak-data-agent-client 中)
+grant_type=password
+client_id=idb-proxy-client
+client_secret=<from K8s Secret keycloak-idb-proxy-client>
+username=<input>
+password=<input>
 ```
 
-### 3. Token 结构
-
-前端需要知道 JWT 解码后的结构：
+**API Response:**
 
 ```json
 {
-  "iss": "http://<gateway>/realms/data-agent",
-  "sub": "user-uuid",
-  "preferred_username": "tenant-admin",
-  "email": "tenant-admin@data-agent.local",
+  "access_token": "eyJhbG...",
+  "refresh_token": "eyJhbG...",
+  "expires_in": 300
+}
+```
+
+**Frontend Logic:**
+- Store `access_token` and `refresh_token`
+- All subsequent requests add header: `Authorization: Bearer <access_token>`
+- When token expires, use refresh_token to get new one via same endpoint with `grant_type=refresh_token`
+
+---
+
+#### Page 2: Tenant List
+
+| UI Element | API |
+|------------|-----|
+| Tenant list table | `GET /api/v1/tenants` |
+| Each row: tenant name, realm, status | - |
+| "Add Tenant" button | → navigate to Page 3 |
+| Click tenant row | → navigate to tenant portal (`/{tenant_id}/portal`) |
+
+**API Request:**
+
+```
+GET /api/v1/tenants
+Authorization: Bearer <super-admin-token>
+```
+
+**API Response:**
+
+```json
+[
+  {
+    "id": "data-agent",
+    "realm": "data-agent",
+    "displayName": "Data Agent",
+    "enabled": true
+  }
+]
+```
+
+---
+
+#### Page 3: Add Tenant (Step 1 - Basic Info)
+
+| UI Element | API |
+|------------|-----|
+| Realm name input | → `realm` field |
+| Display name input | → `displayName` field |
+| Identity Provider dropdown: `SAML 2.0` | → determines next step |
+| "Next" button | → first create tenant, then navigate to Step 2 |
+
+**On "Next" click — Create Tenant:**
+
+```
+POST /api/v1/tenants
+Authorization: Bearer <super-admin-token>
+Content-Type: application/json
+
+{
+  "realm": "new-customer",
+  "displayName": "New Customer Inc."
+}
+```
+
+**Response (201):**
+
+```json
+{
+  "realm": "new-customer",
+  "id": "new-customer",
+  "admin_role": "tenant-admin",
+  "admin_user": "tenant-admin"
+}
+```
+
+---
+
+#### Page 4: Add Tenant (Step 2 - SAML Configuration)
+
+> This page appears after tenant creation when SAML 2.0 is selected.
+
+**Option A: Fill in parameters manually**
+
+| UI Element | Field | Required |
+|------------|-------|----------|
+| SSO Service URL | `config.singleSignOnServiceUrl` | Yes |
+| Entity ID | `config.entityId` | No |
+| Display Name | `displayName` | No |
+| Enable toggle | `enabled` | Yes (default true) |
+| Trust Email toggle | `trustEmail` | No (default false) |
+
+**API Request:**
+
+```
+POST /api/v1/{realm}/idp/saml/instances
+Authorization: Bearer <super-admin-token>
+Content-Type: application/json
+
+{
+  "displayName": "Customer SSO",
+  "enabled": true,
+  "trustEmail": false,
+  "config": {
+    "singleSignOnServiceUrl": "https://customer-idp.example.com/sso",
+    "entityId": "https://customer-idp.example.com/entity"
+  }
+}
+```
+
+**Option B: Upload XML Metadata**
+
+```
+POST /api/v1/{realm}/idp/saml/import
+Authorization: Bearer <super-admin-token>
+Content-Type: multipart/form-data
+
+file=@metadata.xml
+```
+
+---
+
+### Tenant Portal (`/{tenant_id}/portal`)
+
+#### Page 5: Tenant Login
+
+| UI Element | API |
+|------------|-----|
+| "Login" button (redirect to Keycloak login page) | Browser redirect |
+
+**Redirect URL:**
+
+```
+/realms/{realm}/protocol/openid-connect/auth
+  ?response_type=code
+  &client_id=data-agent
+  &redirect_uri=<frontend callback URL>
+  &scope=openid profile email
+```
+
+**Flow:**
+1. User clicks "Login" → browser redirects to Keycloak login page
+2. User logs in (username/password or SSO)
+3. Keycloak redirects back to `redirect_uri?code=xxx`
+4. Frontend exchanges code for token:
+
+```
+POST /realms/{realm}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+client_id=data-agent
+code=<authorization code>
+redirect_uri=<same as above>
+```
+
+> Note: `data-agent` client is a public client (no client_secret needed)
+
+---
+
+### Tenant Admin Pages (after login as tenant-admin)
+
+#### Page 7: User Management
+
+| UI Element | API |
+|------------|-----|
+| User list table (username, email, status) | `GET /api/v1/{realm}/users` |
+| Click "View" on a user | `GET /api/v1/{realm}/users/{user_id}/details` |
+
+**User List Response:**
+
+```json
+[
+  {
+    "id": "user-uuid",
+    "username": "john",
+    "email": "john@example.com",
+    "firstName": "John",
+    "lastName": "Doe",
+    "enabled": true
+  }
+]
+```
+
+**User Detail (View popup) Response:**
+
+```json
+{
+  "groups": [
+    {"id": "group-uuid", "name": "dev-team"}
+  ],
   "roles": [
-    {"id": "uuid-1", "name": "tenant-admin"},
-    {"id": "uuid-2", "name": "normal-user"}
+    {"id": "role-uuid", "name": "viewer"}
   ]
 }
 ```
 
-- `roles` 字段是 `[{id, name}]` 结构，前端用 `name` 做显示，用 `id` 做 API 调用
-- `iss` 中的 realm 名就是 tenant-id
-
 ---
 
-## 二、需要和前端确认的事项
+#### Page 8: Group Management
 
-### 1. 登录方式
+| UI Element | API |
+|------------|-----|
+| Group list table | `GET /api/v1/{realm}/groups` |
+| Click "View" | `GET /api/v1/{realm}/groups/{group_id}` |
+| Click "Edit" | `PUT /api/v1/{realm}/groups/{group_id}` |
+| Click "Add Group" | `POST /api/v1/{realm}/groups` |
+| Click "Delete" | `DELETE /api/v1/{realm}/groups/{group_id}` |
 
-- [ ] super-admin 登录：直接用密码表单？还是也走 OIDC redirect？
-- [ ] 租户用户登录：走 Keycloak 登录页 redirect（标准 OIDC code flow），还是前端自己做登录表单 + password grant？
-- [ ] client_secret 如何给前端？写死在前端配置里？还是前端调后端中转？
-  > 如果是 SPA（纯前端），建议用 public client（无 secret），Keycloak 已创建的 `data-agent` client 就是 public client
+**Add Group form:**
 
-### 2. 前端部署方式
+| Field | Type | Source |
+|-------|------|--------|
+| Name | text input | user input |
+| Description | text input | user input |
+| Roles | multi-select dropdown (tag-style, can add multiple) | `GET /api/v1/{realm}/roles` for dropdown options |
+| Members | multi-select dropdown (tag-style, can add multiple) | `GET /api/v1/{realm}/users` for dropdown options |
 
-- [ ] 前端是 SPA（Nginx 托管静态文件）还是 SSR（Node.js 服务）？
-- [ ] 是否部署在 K8s 集群内？还是独立部署？
-- [ ] 如果在 K8s 内，需要：
-  - 提供 Docker 镜像
-  - 创建 Deployment + Service
-  - 创建 HTTPRoute 将前端路径（如 `/ui/*`）路由到前端服务
-  - 创建 ReferenceGrant（如果前端不在 agentgateway-system 命名空间）
+**Create Group Request:**
 
-### 3. 前端路由 vs Gateway 路由
+```
+POST /api/v1/{realm}/groups
+Authorization: Bearer <tenant-admin-token>
+Content-Type: application/json
 
-- [ ] 前端的路径前缀是什么？（如 `/ui/`、`/dashboard/`、`/`）
-- [ ] 前端路由是否需要 Gateway 做 fallback 到 index.html？（SPA history mode）
-- [ ] 前端是否需要直接访问 Keycloak 的登录页？（需要 `/realms/*` 路由不做 ext-authz）
-
-### 4. CORS
-
-- [ ] 前端的 origin 是什么？（如 `http://localhost:3000`）
-- [ ] 目前 keycloak-proxy 和 pep-proxy 都配了 `allow_origins=["*"]`，生产环境需要收紧
-- [ ] Gateway 层面是否需要额外配置 CORS？
-
-### 5. Token 管理
-
-- [ ] Token 过期时间当前是 Keycloak 默认（access_token 5 分钟，refresh_token 30 分钟），是否需要调整？
-- [ ] 前端如何处理 Token 过期？自动 refresh 还是跳回登录页？
-- [ ] Token 存储方式？localStorage / sessionStorage / httpOnly cookie？
-
-### 6. 页面/功能范围
-
-- [ ] 第一期联调覆盖哪些页面？建议优先级：
-  1. 登录页
-  2. 租户列表/创建/删除（super-admin）
-  3. 角色管理（tenant-admin）
-  4. 策略管理（tenant-admin）
-  5. 用户/组管理（tenant-admin）
-  6. IDP 接入配置（tenant-admin）
-
----
-
-## 三、前端在 K8s 部署示例
-
-如果前端是 SPA（Nginx），部署步骤：
-
-```yaml
-# 1. Deployment + Service
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: auth-dashboard
-  namespace: frontend
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: auth-dashboard
-  template:
-    metadata:
-      labels:
-        app: auth-dashboard
-    spec:
-      containers:
-      - name: auth-dashboard
-        image: auth-dashboard:v1
-        ports:
-        - containerPort: 80
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: auth-dashboard
-  namespace: frontend
-spec:
-  selector:
-    app: auth-dashboard
-  ports:
-  - port: 80
-    targetPort: 80
-
----
-# 2. ReferenceGrant (允许 Gateway 跨命名空间路由)
-apiVersion: gateway.networking.k8s.io/v1beta1
-kind: ReferenceGrant
-metadata:
-  name: allow-gateway-to-frontend
-  namespace: frontend
-spec:
-  from:
-  - group: gateway.networking.k8s.io
-    kind: HTTPRoute
-    namespace: agentgateway-system
-  to:
-  - group: ""
-    kind: Service
-    name: auth-dashboard
-
----
-# 3. HTTPRoute (前端路由，不挂 ext-authz)
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: dashboard-route
-  namespace: agentgateway-system
-spec:
-  parentRefs:
-  - name: agentgateway-proxy
-    namespace: agentgateway-system
-  hostnames:
-  - "localhost"
-  rules:
-  - matches:
-    - path:
-        type: PathPrefix
-        value: /ui
-    backendRefs:
-    - name: auth-dashboard
-      namespace: frontend
-      port: 80
+{
+  "name": "dev-team",
+  "roles": ["viewer", "editor"],
+  "users": ["user-uuid-1", "user-uuid-2"]
+}
 ```
 
-> 前端路由不需要挂 ext-authz（AgentgatewayPolicy），因为前端页面本身不需要鉴权，鉴权发生在前端调 API 时。
+> `roles` uses role **names**, `users` uses user **UUIDs**
+
+**Create Group Response (201):**
+
+```json
+{
+  "id": "group-uuid",
+  "name": "dev-team",
+  "subGroups": []
+}
+```
+
+**Group Detail (View) Response:**
+
+```json
+{
+  "id": "group-uuid",
+  "name": "dev-team",
+  "members": [
+    {"id": "user-uuid", "username": "john"}
+  ],
+  "roles": [
+    {"id": "role-uuid", "name": "viewer"}
+  ]
+}
+```
+
+**Edit Group Request (204 No Content):**
+
+```
+PUT /api/v1/{realm}/groups/{group_id}
+Content-Type: application/json
+
+{
+  "name": "dev-team-v2",
+  "roles": ["viewer"],
+  "users": ["user-uuid-1"]
+}
+```
+
+---
+
+#### Page 9: Role Management
+
+| UI Element | API |
+|------------|-----|
+| Role list table (role name + bound Resource Policy) | `GET /api/v1/{realm}/roles` + per-role `GET /api/v1/roles/{role_id}/policy` |
+| Click "Edit" | Update role basic info + rebind policy |
+| Click "Create Role" | `POST /api/v1/{realm}/roles` + optionally bind policy |
+
+**Role list display logic:**
+
+```
+1. GET /api/v1/{realm}/roles → get role list with {id, name, description}
+2. For each role, GET /api/v1/roles/{role.id}/policy → get bound policy name
+3. Display: | Role Name | Description | Resource Policy |
+```
+
+**Create Role form:**
+
+| Field | Type | Source |
+|-------|------|--------|
+| Name | text input | user input |
+| Description | text input | user input |
+| Resource Policy | single-select dropdown | `GET /api/v1/policies` for dropdown options |
+
+**Create Role flow (2 API calls):**
+
+```
+Step 1: Create the role
+POST /api/v1/{realm}/roles
+Content-Type: application/json
+{"name": "viewer", "description": "Read-only viewer"}
+
+Response (201): full role object with id
+
+Step 2: Bind policy to role (if policy selected)
+POST /api/v1/roles/{role_id}/policy
+Content-Type: application/json
+{"policy_id": "docs-policy", "tenant_id": "{realm}"}
+```
+
+**Edit Role flow:**
+
+```
+Update basic info:
+PUT /api/v1/{realm}/roles/{role_name}
+{"description": "Updated description"}
+
+Update/change bound policy:
+PUT /api/v1/roles/{role_id}/policy
+{"policy_id": "new-policy-id", "tenant_id": "{realm}"}
+```
+
+---
+
+#### Page 10: Resource Policy Management
+
+| UI Element | API |
+|------------|-----|
+| Policy list table | `GET /api/v1/policies` |
+| Click "View" | `GET /api/v1/policies/{policy_id}` |
+| Click "Edit" | `PUT /api/v1/policies/{policy_id}` |
+| Click "Add Policy" | `POST /api/v1/policies` |
+| Click "Delete" | `DELETE /api/v1/policies/{policy_id}` |
+
+**Policy List Response:**
+
+```json
+{
+  "policies": [
+    {
+      "id": "docs-policy",
+      "tenant_id": "data-agent",
+      "rules": [
+        {"resource": "documents", "effect": "allow"},
+        {"resource": "settings", "effect": "deny"}
+      ]
+    }
+  ],
+  "count": 1,
+  "tenant_id": "data-agent"
+}
+```
+
+**Add Policy form:**
+
+| Field | Type | Source |
+|-------|------|--------|
+| Name | text input | user input |
+| Resources | hardcoded list, each with Allow/Deny toggle | frontend hardcoded (future: dynamic API) |
+
+**Resource list example (hardcoded in frontend):**
+
+```
+| Resource    | Allow | Deny |
+|-------------|-------|------|
+| documents   |  [x]  |  [ ] |
+| reports     |  [ ]  |  [x] |
+| settings    |  [x]  |  [ ] |
+| billing     |  [ ]  |  [x] |
+| invoices    |  [x]  |  [ ] |
+```
+
+**Create Policy Request:**
+
+```
+POST /api/v1/policies
+Authorization: Bearer <tenant-admin-token>
+Content-Type: application/json
+
+{
+  "name": "docs-policy",
+  "tenant_id": "data-agent",
+  "rules": [
+    {"resource": "documents", "effect": "allow"},
+    {"resource": "reports", "effect": "deny"},
+    {"resource": "settings", "effect": "allow"},
+    {"resource": "billing", "effect": "deny"},
+    {"resource": "invoices", "effect": "allow"}
+  ]
+}
+```
+
+**Edit Policy Request (full replace):**
+
+```
+PUT /api/v1/policies/{policy_id}
+Content-Type: application/json
+
+{
+  "name": "docs-policy",
+  "tenant_id": "data-agent",
+  "rules": [
+    {"resource": "documents", "effect": "allow"},
+    {"resource": "reports", "effect": "allow"},
+    {"resource": "settings", "effect": "allow"}
+  ]
+}
+```
+
+---
+
+## Key Points for Frontend
+
+### Authentication Header
+
+All API calls (except login and OIDC endpoints) must include:
+
+```
+Authorization: Bearer <access_token>
+```
+
+### Role-Policy Relationship
+
+```
+Role ──1:1──> Resource Policy ──1:N──> Rules (resource + allow/deny)
+```
+
+- One role binds to exactly one resource policy
+- One policy contains multiple resource rules
+- Each rule is a resource name + allow/deny toggle
+
+### Status Codes to Handle
+
+| Action | Success Code | Body |
+|--------|-------------|------|
+| Create tenant/role/group/IDP | 201 | resource object |
+| Create policy | 200 | policy object |
+| Update role/IDP | 200 | updated object |
+| Update group | 204 | no body |
+| Update policy | 200 | updated object |
+| Delete tenant/role/group/IDP | 204 | no body |
+| Delete policy | 200 | message |
+| List/Get | 200 | data |
+| Auth failed | 401/403 | error message |
+
+### Environment Configuration
+
+| Item | Development | Production |
+|------|-------------|------------|
+| Gateway URL | `http://localhost:8080` | `http://<server-ip>:8080` or domain |
+| Keycloak Admin | `http://localhost:8080/admin/` | same via gateway |
+| Super-admin client_secret | from K8s Secret | from K8s Secret |
+
+### Test Accounts
+
+| User | Realm | Password | Role | Portal |
+|------|-------|----------|------|--------|
+| super-admin | master | SuperInit@123 | super-admin | /super-portal |
+| tenant-admin | data-agent | TenantAdmin@123 | tenant-admin | /data-agent/portal |
+| normal-user | data-agent | NormalUser@123 | normal-user | /data-agent/portal |
