@@ -299,7 +299,7 @@ if [ "$USE_KIND" = true ] || [ "$EXISTING_KIND" = true ]; then
 
     # Auto-detect Kind node image if not set
     if [ -z "$KIND_NODE_IMAGE" ]; then
-      AVAILABLE_IMAGES=($(docker images --format '{{.Repository}}:{{.Tag}}' | grep '^kindest/node:' | sort -Vr))
+      AVAILABLE_IMAGES=($(docker images --format '{{.Repository}}:{{.Tag}}' | grep '^kindest/node:' | sort -Vr || true))
       if [ ${#AVAILABLE_IMAGES[@]} -eq 0 ]; then
         err "No kindest/node image found. Pull one first: docker pull kindest/node:v1.31.6"
       elif [ ${#AVAILABLE_IMAGES[@]} -eq 1 ]; then
