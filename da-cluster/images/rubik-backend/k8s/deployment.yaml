@@ -1,0 +1,41 @@
+# k8s/deployment.yaml
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rubik-backend
+  namespace: rubik
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rubik-backend
+  template:
+    metadata:
+      labels:
+        app: rubik-backend
+    spec:
+      containers:
+      - name: rubik-backend
+        image: docker.io/library/rubik-backend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 43211
+          name: http
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          tcpSocket:
+            port: 43211
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 43211
+          initialDelaySeconds: 5
+          periodSeconds: 5

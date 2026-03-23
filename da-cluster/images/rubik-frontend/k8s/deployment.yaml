@@ -1,0 +1,46 @@
+# k8s/deployment.yaml
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rubik-frontend
+  namespace: rubik
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rubik-frontend
+  template:
+    metadata:
+      labels:
+        app: rubik-frontend
+    spec:
+      containers:
+      - name: rubik-frontend
+        image: dataagent:20260318
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 32777
+          name: http
+        env:
+        - name: RUBIK_BACKEND_URL
+          value: "http://rubik-backend:43211/api"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 32777
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 32777
+          initialDelaySeconds: 5
+          periodSeconds: 5

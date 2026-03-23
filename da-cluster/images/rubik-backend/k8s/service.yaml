@@ -1,0 +1,18 @@
+# k8s/service.yaml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rubik-backend
+  namespace: rubik
+  labels:
+    app: rubik-backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 43211
+    targetPort: 43211
+    name: http
+    protocol: TCP
+  selector:
+    app: rubik-backend

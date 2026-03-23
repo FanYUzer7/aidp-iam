@@ -1,0 +1,38 @@
+replicaCount: 1
+
+image:
+  repository: dataagent
+  tag: 20260318
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 43211
+
+# 探针配置
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+# 资源配置
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# 运行时配置
+config:
+  host: "0.0.0.0"
+  port: 43211
+
+# namespace 配置（空则使用默认）
+namespace: ""

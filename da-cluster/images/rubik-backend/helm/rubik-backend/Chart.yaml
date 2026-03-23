@@ -1,0 +1,14 @@
+apiVersion: v2
+name: rubik-backend
+description: A Helm chart for deploying rubik-backend on Kubernetes
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - rubik
+  - backend
+  - dataagent
+home: https://github.com/example/rubik-backend
+maintainers:
+  - name: developer
+    email: developer@example.com

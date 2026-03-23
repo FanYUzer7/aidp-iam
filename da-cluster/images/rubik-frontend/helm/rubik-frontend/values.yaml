@@ -1,0 +1,57 @@
+replicaCount: 1
+
+image:
+  repository: dataagent
+  tag: 20260318
+  pullPolicy: IfNotPresent
+
+# 后端服务配置
+backend:
+  # 服务名称（必须是同 namespace 下的 Service，或使用完整 FQDN）
+  serviceName: rubik-backend
+  # 服务端口
+  servicePort: 43211
+  # API 路径
+  apiPath: /api
+
+# 后端完整 URL（由上述配置组合生成）
+# 格式: http://<service>:<port><apiPath>
+rubikBackendUrl: ""
+
+service:
+  type: ClusterIP
+  port: 32777
+
+# 探针配置（dev 模式下使用 httpGet）
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /
+    port: 32777
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /
+    port: 32777
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+# 资源配置
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+# 运行时配置
+config:
+  host: "0.0.0.0"
+  port: 32777
+
+# namespace 配置（空则使用默认）
+namespace: ""

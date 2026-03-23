@@ -1,0 +1,15 @@
+apiVersion: v2
+name: rubik-frontend
+description: A Helm chart for deploying rubik-frontend on Kubernetes
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - rubik
+  - frontend
+  - vue
+  - vite
+home: https://github.com/example/rubik-frontend
+maintainers:
+  - name: developer
+    email: developer@example.com

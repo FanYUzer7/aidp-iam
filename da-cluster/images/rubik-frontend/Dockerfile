@@ -1,35 +1,13 @@
-# ---- Stage 1: Build ----
-FROM node:20-alpine AS builder
+FROM dataagent:20260318
 
-WORKDIR /app
+WORKDIR /DataAgent/data-agent-rubik-dev
 
-# Install dependencies first (cache layer)
-COPY package.json package-lock.json ./
-RUN npm ci
+# 修改 vite.config.ts 中的 proxy target 为后端服务地址
+# 后端服务地址通过 build args 传入，默认指向 k8s cluster 内部的服务
+ARG RUBIK_BACKEND_URL=http://rubik-backend:43211/api
 
-# Copy source and build
-COPY index.html tsconfig.json tsconfig.node.json vite.config.ts \
-     tailwind.config.js postcss.config.js ./
-COPY src/ src/
+RUN sed -i "s|target: \"http://[^\"]*\"|target: \"${RUBIK_BACKEND_URL}\"|" vite.config.ts || true
 
-# Build args for runtime API endpoints (baked into static bundle)
-ARG VITE_API_BASE_URL=""
-ARG VITE_IAM_BASE_URL=""
+EXPOSE 5173
 
-RUN npm run build
-
-# ---- Stage 2: Serve ----
-FROM nginx:1.27-alpine
-
-# Remove default config
-RUN rm /etc/nginx/conf.d/default.conf
-
-# Copy custom nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Copy built static files
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
