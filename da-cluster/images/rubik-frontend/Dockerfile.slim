@@ -1,0 +1,16 @@
+FROM dataagent:20260318
+
+# 设置工作目录
+WORKDIR /DataAgent
+
+ARG RUBIK_BACKEND_URL=http://rubik-backend:43211/api
+
+COPY data-agent-rubik-dev/ .
+
+WORKDIR /DataAgent/data-agent-rubik-dev
+
+RUN sed -i "s|target: \"http://[^\"]*\"|target: \"${RUBIK_BACKEND_URL}\"|" vite.config.ts || true
+
+EXPOSE 32777
+
+ENTRYPOINT ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

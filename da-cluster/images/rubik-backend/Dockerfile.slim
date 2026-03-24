@@ -1,0 +1,32 @@
+# 使用指定的基础镜像
+FROM rubik_backend_base:latest
+
+# 设置工作区为 /workspace
+WORKDIR /workspace
+
+# 将本地构建上下文中的代码目录复制到容器工作区
+# 假设 Dockerfile 与 AgentHeaven-dev/ 和 RubikSQL-dev/ 在同一级目录
+COPY AgentHeaven-dev/ ./AgentHeaven-dev/
+COPY RubikSQL-dev/ ./RubikSQL-dev/
+
+# --- 安装 AgentHeaven-dev ---
+WORKDIR /workspace/AgentHeaven-dev
+RUN pip install . --no-deps --no-build-isolation && \
+    cp -rf src/ahvn/resources/ /usr/local/lib/python3.13/site-packages/ahvn/
+
+# --- 安装 RubikSQL-dev ---
+WORKDIR /workspace/RubikSQL-dev
+RUN pip install . --no-deps --no-build-isolation && \
+    cp -r src/rubiksql/resources/ /usr/local/lib/python3.13/site-packages/rubiksql/
+
+# --- 执行初始化设置 ---
+# 切回根工作区
+WORKDIR /workspace
+RUN ahvn setup -r && \
+    rubiksql setup -r
+
+# 导出端口
+EXPOSE 43211
+
+# 设置入口点
+ENTRYPOINT ["rubiksql", "backend", "--host", "0.0.0.0", "--port", "43211"]

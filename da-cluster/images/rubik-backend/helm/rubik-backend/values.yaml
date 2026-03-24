@@ -1,8 +1,8 @@
 replicaCount: 1
 
 image:
-  repository: dataagent
-  tag: 20260318
+  repository: rubik-backend
+  tag: latest
   pullPolicy: IfNotPresent
 
 service:
@@ -24,7 +24,6 @@ readinessProbe:
 resources:
   limits:
     cpu: 500m
-    memory: 512Mi
   requests:
     cpu: 250m
     memory: 256Mi

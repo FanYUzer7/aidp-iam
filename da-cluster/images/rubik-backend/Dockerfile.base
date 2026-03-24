@@ -1,0 +1,55 @@
+FROM python:3.13-slim
+
+# 设置工作目录
+WORKDIR /workspace
+
+# 设置环境变量，避免交互式提示和日志缓冲
+ENV DEBIAN_FRONTEND=noninteractive \
+    PIP_NO_CACHE_DIR=1 \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8
+
+# 替换APT源并安装系统依赖
+RUN if [ -n "${HTTP_PROXY}" ]; then \
+        echo "Acquire::http::Proxy \"${HTTP_PROXY}\";" > /etc/apt/apt.conf.d/01proxy; \
+    fi && \
+    if [ -n "${HTTPS_PROXY}" ]; then \
+        echo "Acquire::https::Proxy \"${HTTPS_PROXY}\";" >> /etc/apt/apt.conf.d/01proxy; \
+    fi && \
+    sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/*.sources 2>/dev/null || true && \
+    sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list 2>/dev/null || true && \
+    echo "start apt-update, with proxy=$HTTP_PROXY" && \
+    for i in 1 2 3 4 5; do \
+        apt-get update -qq && break || { echo "apt-get update retry $i..."; sleep 5; }; \
+    done && \
+    apt-get install -y --no-install-recommends \
+        vim curl wget git htop tree tmux \
+        unzip zip jq ca-certificates locales \
+        openssh-client build-essential \
+        iputils-ping dnsutils netcat-openbsd \
+        telnet tcpdump && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /etc/apt/apt.conf.d/01proxy
+
+# 配置 Vim（写入 /root/.vimrc）
+RUN printf '%s\n' \
+    "set encoding=utf-8" \
+    "set fileencodings=utf-8,gbk,gb2312,latin1" \
+    "set termencoding=utf-8" \
+    "set langmenu=zh_CN.UTF-8" >> /root/.vimrc
+
+
+# 复制并安装Python依赖
+COPY requirements.txt /workspace/requirements.txt
+RUN pip install -r requirements.txt \
+        -i https://repo.huaweicloud.com/repository/pypi/simple   \
+        --trusted-host repo.huaweicloud.com
+
+# 复制并安装 en_core_web_sm 模型
+COPY en_core_web_sm-3.8.0-py3-none-any.whl /workspace/
+RUN pip install /workspace/en_core_web_sm-3.8.0-py3-none-any.whl
+
+# 可选：清理pip缓存（如未设置PIP_NO_CACHE_DIR）
+# RUN rm -rf /root/.cache/pip
+
+# 默认启动命令（可根据实际需求修改）
+CMD ["/bin/bash"]
