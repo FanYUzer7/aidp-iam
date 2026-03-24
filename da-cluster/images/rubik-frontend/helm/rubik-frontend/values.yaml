@@ -19,8 +19,9 @@ backend:
 rubikBackendUrl: ""
 
 service:
-  type: ClusterIP
+  type: NodePort
   port: 32777
+  nodePort: 32777
 
 # 探针配置（dev 模式下使用 httpGet）
 livenessProbe:

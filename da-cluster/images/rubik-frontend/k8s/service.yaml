@@ -8,10 +8,11 @@ metadata:
   labels:
     app: rubik-frontend
 spec:
-  type: ClusterIP
+  type: NodePort
   ports:
   - port: 32777
     targetPort: 32777
+    nodePort: 32777
     name: http
     protocol: TCP
   selector:
