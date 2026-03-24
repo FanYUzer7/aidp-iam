@@ -19,14 +19,28 @@ WORKDIR /workspace/RubikSQL-dev
 RUN pip install . --no-deps --no-build-isolation && \
     cp -r src/rubiksql/resources/ /usr/local/lib/python3.13/site-packages/rubiksql/
 
-# --- 执行初始化设置 ---
+# --- 运行时初始化脚本 ---
 # 切回根工作区
 WORKDIR /workspace
-RUN ahvn setup -r && \
-    rubiksql setup -r
+RUN printf '%s\n' \
+    '#!/bin/bash' \
+    'set -e' \
+    '# 如果 ~/.ahvn 不存在配置，则运行初始化' \
+    'if [ ! -f "$HOME/.ahvn/config.db" ]; then' \
+    '    echo "Initializing ahvn config..."' \
+    '    ahvn setup -r' \
+    'fi' \
+    '# 如果 ~/.rubiksql 不存在配置，则运行初始化' \
+    'if [ ! -f "$HOME/.rubiksql/config.db" ]; then' \
+    '    echo "Initializing rubiksql config..."' \
+    '    rubiksql setup -r' \
+    'fi' \
+    'exec "$@"' > /entrypoint.sh && \
+    chmod +x /entrypoint.sh
 
 # 导出端口
 EXPOSE 43211
 
-# 设置入口点
-ENTRYPOINT ["rubiksql", "backend", "--host", "0.0.0.0", "--port", "43211"]
+# 设置入口点 - 使用运行时初始化脚本
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["rubiksql", "backend", "--host", "0.0.0.0", "--port", "43211"]

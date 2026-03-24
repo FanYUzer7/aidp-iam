@@ -15,10 +15,22 @@ spec:
       labels:
         {{- include "rubik-backend.selectorLabels" . | nindent 8 }}
     spec:
+      {{- if .Values.persistence.enabled }}
+      volumes:
+      - name: rubik-config
+        persistentVolumeClaim:
+          claimName: {{ include "rubik-backend.fullname" . }}-config
+      {{- end }}
       containers:
       - name: {{ .Chart.Name }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- if .Values.persistence.enabled }}
+        volumeMounts:
+        - name: rubik-config
+          mountPath: /root
+          subPath: root
+        {{- end }}
         ports:
         - name: http
           containerPort: {{ .Values.config.port }}

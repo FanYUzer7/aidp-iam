@@ -35,3 +35,9 @@ config:
 
 # namespace 配置（空则使用默认）
 namespace: ""
+
+# 持久化存储配置
+persistence:
+  enabled: true
+  size: 1Gi
+  # storageClass: ""  # 留空使用集群默认
