@@ -56,3 +56,43 @@ config:
 
 # namespace 配置（空则使用默认）
 namespace: ""
+
+# nginx 配置（通过 ConfigMap 管理，无需重建镜像即可更新）
+nginx:
+  config: |
+    server {
+        listen       80;
+        server_name  _;
+
+        root   /usr/share/nginx/html;
+        index  index.html;
+
+        # SPA fallback - 所有路由都返回 index.html
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        # API 代理 - /kbApi/* 转发到后端
+        location /kbApi/ {
+            proxy_pass http://rubik-backend:43211/api/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            # WebSocket 支持
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+
+            # 长超时用于 LLM 流式响应
+            proxy_read_timeout 300s;
+            proxy_send_timeout 300s;
+        }
+
+        # 静态资源缓存
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?)$ {
+            expires 30d;
+            add_header Cache-Control "public, immutable";
+        }
+    }

@@ -44,3 +44,15 @@ spec:
         {{- end }}
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d
+          readOnly: true
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 1 && nginx -s reload 2>/dev/null || true"]
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: {{ include "rubik-frontend.fullname" . }}-nginx

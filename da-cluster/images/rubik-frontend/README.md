@@ -127,7 +127,7 @@ const API_BASE = import.meta.env.VITE_API_BASE || "/kbApi";
 rubik-frontend/
 ├── Dockerfile.base      # 基础镜像
 ├── Dockerfile.slim     # 胖更新镜像
-├── nginx.conf          # nginx 配置
+├── nginx.conf          # 本地开发用 nginx 配置（仅供参考）
 ├── README.md           # 本文档
 └── helm/
     └── rubik-frontend/
@@ -135,9 +135,33 @@ rubik-frontend/
         ├── values.yaml
         └── templates/
             ├── _helpers.tpl
+            ├── configmap.yaml    # nginx ConfigMap 配置
             ├── deployment.yaml
             └── service.yaml
 ```
+
+## nginx 配置热更新
+
+nginx.conf 通过 Kubernetes ConfigMap 管理，修改配置后无需重建镜像即可生效。
+
+### 更新 nginx 配置
+
+```bash
+# 方式 1: 直接编辑 Helm values 并升级
+helm upgrade --install rubik-frontend ./helm/rubik-frontend -n rubik \
+  --set nginx.config="<new config>"
+
+# 方式 2: 编辑 ConfigMap（需手动重载）
+kubectl edit configmap rubik-frontend-nginx -n rubik
+# 修改后，手动重载 nginx：
+kubectl exec -n rubik deployment/rubik-frontend -- nginx -s reload
+```
+
+### 配置生效机制
+
+1. ConfigMap 更新后，kubelet 会在短时间内同步到挂载的文件
+2. 容器启动时通过 `lifecycle.postStart` 钩子自动执行 `nginx -s reload`
+3. 对于已运行的容器，手动执行 `nginx -s reload` 使配置生效
 
 ## 注意事项
 
@@ -145,3 +169,4 @@ rubik-frontend/
 2. **离线构建**: slim 镜像构建时不需要网络下载依赖（因为复用 base 的 node_modules）
 3. **镜像大小**: base 镜像会比较大（包含 node_modules），但 slim 可以复用其层
 4. **nginx 启动**: base 镜像默认不启动 nginx，slim 镜像默认启动
+5. **ConfigMap**: nginx 配置通过 Helm values 的 `nginx.config` 字段管理，存储在 ConfigMap 中
