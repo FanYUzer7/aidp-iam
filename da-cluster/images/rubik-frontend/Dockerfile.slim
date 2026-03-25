@@ -1,6 +1,6 @@
 # 胖更新镜像 - 基于 base 构建
 # 用于离线环境用新源码构建新镜像，部署后自动运行 nginx
-FROM rubik_frontend_base:latest
+FROM rubik-frontend:base
 
 # 复制新源码到 build 目录
 COPY data-agent-rubik/ /app/build/

@@ -1,11 +1,9 @@
-# 基础镜像：包含 node + nginx + node_modules + 构建好的前端
-# slim 基于此镜像构建新版本（复用 node_modules）
-FROM node:20-alpine
+# 基础镜像：基于 nginx:alpine，安装 nodejs 用于构建前端
+FROM nginx:alpine
 
-# 安装 nginx
-RUN apk add nginx
+# 安装 nodejs 和 npm
+RUN apk add --no-cache nodejs npm
 
-# 设置工作目录
 WORKDIR /app
 
 # 复制 package.json 和 package-lock.json
