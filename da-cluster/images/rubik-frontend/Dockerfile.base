@@ -4,6 +4,9 @@ FROM nginx:alpine
 # 安装 nodejs 和 npm
 RUN apk add --no-cache nodejs npm
 
+# 忽略 SSL 证书错误（解决 SELF_SIGNED_CERT_IN_CHAIN 问题）
+RUN npm config set strict-ssl false
+
 WORKDIR /app
 
 # 复制 package.json 和 package-lock.json
