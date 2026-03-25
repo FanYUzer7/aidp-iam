@@ -32,3 +32,5 @@ Thumbs.db
 *.tar.gz
 helm-*.tar.gz
 *.litcoffee
+
+da-cluster/images/rubik-frontend/data-agent-rubik-dev_temp

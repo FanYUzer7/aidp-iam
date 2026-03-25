@@ -1,16 +1,20 @@
-FROM dataagent:20260318
+# 胖更新镜像 - 基于 base 构建
+# 用于离线环境用新源码构建新镜像，部署后自动运行 nginx
+FROM rubik_frontend_base:latest
 
-# 设置工作目录
-WORKDIR /DataAgent
+# 复制新源码到 build 目录
+COPY data-agent-rubik/ /app/build/
 
-ARG RUBIK_BACKEND_URL=http://rubik-backend:43211/api
+# 重建前端（复用 base 的 node_modules）
+WORKDIR /app/build
+RUN npm run build
 
-COPY data-agent-rubik-dev/ .
+# 用新构建替换 nginx html 目录
+RUN rm -rf /usr/share/nginx/html/* && \
+    cp -r /app/build/dist/* /usr/share/nginx/html/
 
-WORKDIR /DataAgent/data-agent-rubik-dev
+# 清理 build 目录（节省空间）
+RUN rm -rf /app/build
 
-RUN sed -i "s|target: \"http://[^\"]*\"|target: \"${RUBIK_BACKEND_URL}\"|" vite.config.ts || true
-
-EXPOSE 32777
-
-ENTRYPOINT ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# 启动 nginx 服务（k8s 可管理）
+CMD ["nginx", "-g", "daemon off;"]

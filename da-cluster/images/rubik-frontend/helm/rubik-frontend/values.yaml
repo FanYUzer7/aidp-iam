@@ -20,7 +20,7 @@ rubikBackendUrl: ""
 
 service:
   type: NodePort
-  port: 32777
+  port: 80
   nodePort: 32777
 
 # 探针配置（dev 模式下使用 httpGet）
@@ -28,7 +28,7 @@ livenessProbe:
   enabled: true
   httpGet:
     path: /
-    port: 32777
+    port: 80
   initialDelaySeconds: 30
   periodSeconds: 10
 
@@ -36,7 +36,7 @@ readinessProbe:
   enabled: true
   httpGet:
     path: /
-    port: 32777
+    port: 80
   initialDelaySeconds: 5
   periodSeconds: 5
 
@@ -52,7 +52,7 @@ resources:
 # 运行时配置
 config:
   host: "0.0.0.0"
-  port: 32777
+  port: 80
 
 # namespace 配置（空则使用默认）
 namespace: ""
