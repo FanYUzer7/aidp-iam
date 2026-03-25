@@ -13,7 +13,8 @@ WORKDIR /app
 COPY data-agent-rubik/package*.json ./
 
 # 安装依赖（包括 devDependencies，slim 重建时需要）
-RUN npm ci
+# 使用 npm install 而非 npm ci，因为 lock 文件可能与 package.json 不同步
+RUN npm install
 
 # 复制源码并构建前端
 COPY data-agent-rubik/ ./
