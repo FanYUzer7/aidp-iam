@@ -21,7 +21,7 @@ rubikBackendUrl: ""
 service:
   type: NodePort
   port: 80
-  nodePort: 32777
+  nodePort: 32767
 
 # 探针配置（dev 模式下使用 httpGet）
 livenessProbe:
