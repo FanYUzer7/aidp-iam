@@ -1,8 +1,8 @@
 replicaCount: 1
 
 image:
-  repository: dataagent
-  tag: 20260318
+  repository: rubik-frontend
+  tag: latest
   pullPolicy: IfNotPresent
 
 # 后端服务配置
