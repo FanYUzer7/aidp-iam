@@ -6,9 +6,17 @@ metadata:
   namespace: {{ include "rubik-backend.namespace" . }}
   labels:
     {{- include "rubik-backend.labels" . | nindent 4 }}
+  {{- if .Values.persistence.allowExpansion }}
+  annotations:
+    volume.kubernetes.io/storage-provisioner: {{ .Values.persistence.storageClass | default "kubernetes.io/no-provisioner" }}
+    volume.kubernetes.io/storage-class: {{ .Values.persistence.storageClass | default "standard" }}
+  {{- end }}
 spec:
   accessModes:
     - ReadWriteOnce
+  {{- if .Values.persistence.volumeBindingMode }}
+  volumeBindingMode: {{ .Values.persistence.volumeBindingMode }}
+  {{- end }}
   resources:
     requests:
       storage: {{ .Values.persistence.size }}

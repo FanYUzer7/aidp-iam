@@ -41,3 +41,5 @@ persistence:
   enabled: true
   size: 1Gi
   # storageClass: ""  # 留空使用集群默认
+  # volumeBindingMode: WaitForFirstConsumer  # 延迟绑定，支持动态扩容
+  # allowExpansion: true  # 设为 true 允许动态扩容
