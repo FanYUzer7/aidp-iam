@@ -10,7 +10,7 @@ RUN npm config set strict-ssl false && npm config set maxsockets 10
 WORKDIR /app
 
 # 复制 package.json 和 package-lock.json
-COPY data-agent-rubik/package*.json ./
+COPY data-agent-rubik/package.json ./
 
 # 设置 npm 代理（通过 build-arg 传入）
 ARG HTTP_PROXY
