@@ -20,7 +20,7 @@ RUN if [ -n "${HTTP_PROXY}" ]; then \
     fi
 
 # 安装依赖
-RUN npm install --no-audit --no-fund --loglevel=verbose --registry=http://cmc-cd-mirror.rnd.huawei.com/npm
+RUN npm install --no-audit --no-fund --loglevel=verbose --registry=https://registry.npmmirror.com
 
 # 清除 npm 代理配置
 RUN npm config delete proxy || true && \
