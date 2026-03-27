@@ -1,8 +1,28 @@
 # 基础镜像：基于 nginx:alpine，安装 nodejs 用于构建前端
 FROM nginx:alpine
 
-# 安装 nodejs 和 npm
-RUN apk add --no-cache nodejs npm
+# 安装基础调试工具
+RUN apk add --no-cache \
+    bash \
+    curl \
+    iputils \
+    iproute2 \
+    net-tools \
+    bind-tools \
+    tcpdump \
+    traceroute \
+    mtr \
+    nmap \
+    ngrep \
+    strace \
+    lsof \
+    procps \
+    vim \
+    git \
+    htop \
+    jq \
+    nodejs \
+    npm
 
 # 忽略 SSL 证书错误
 RUN npm config set strict-ssl false && npm config set maxsockets 10
