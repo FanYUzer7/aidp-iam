@@ -40,6 +40,7 @@ namespace: ""
 persistence:
   enabled: true
   size: 1Gi
-  # storageClass: ""  # 留空使用集群默认
+  # storageClass: ""  # 留空使用集群默认；指定名称如 "nfs-client" 使用 NFS 存储
   # volumeBindingMode: WaitForFirstConsumer  # 延迟绑定，支持动态扩容
   # allowExpansion: true  # 设为 true 允许动态扩容
+  # accessMode: ReadWriteOnce  # 默认 RWO，可改为 ReadWriteMany (需要 StorageClass 支持)
