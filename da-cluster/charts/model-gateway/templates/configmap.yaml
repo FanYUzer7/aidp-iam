@@ -44,11 +44,12 @@ data:
         upstream vllm_llm_backend {
             least_conn;
 
+            {{- $upstream := .Values.config.upstream | default (dict "maxFails" 3 "failTimeout" "30s" "keepalive" 32) }}
             {{- range .Values.config.llmBackends }}
-            server {{ .host }}:{{ .port }} max_fails={{ .Values.config.upstream.maxFails }} fail_timeout={{ .Values.config.upstream.failTimeout }}; {{ .name | default "" }}
+            server {{ .host }}:{{ .port }} max_fails={{ $upstream.maxFails }} fail_timeout={{ $upstream.failTimeout }}; {{ .name | default "" }}
             {{- end }}
 
-            keepalive {{ .Values.config.upstream.keepalive }};
+            keepalive {{ $upstream.keepalive }};
         }
 
         # --- 2. 定义 Embedding 模型后端集群 ---
@@ -56,10 +57,10 @@ data:
             least_conn;
 
             {{- range .Values.config.embedBackends }}
-            server {{ .host }}:{{ .port }} max_fails={{ .Values.config.upstream.maxFails }} fail_timeout={{ .Values.config.upstream.failTimeout }}; {{ .name | default "" }}
+            server {{ .host }}:{{ .port }} max_fails={{ $upstream.maxFails }} fail_timeout={{ $upstream.failTimeout }}; {{ .name | default "" }}
             {{- end }}
 
-            keepalive {{ .Values.config.upstream.keepalive }};
+            keepalive {{ $upstream.keepalive }};
         }
 
         server {
