@@ -1,0 +1,6 @@
+apiVersion: v2
+name: model-gateway
+description: Nginx reverse proxy for model multi-instance deployment
+type: application
+version: 0.1.0
+appVersion: 1.25

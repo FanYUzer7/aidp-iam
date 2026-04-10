@@ -1,0 +1,147 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: model-gateway-nginx-conf
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: model-gateway
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+data:
+  nginx.conf: |
+    user  nginx;
+    worker_processes  {{ .Values.config.upstream.workerConnections }};
+
+    error_log  {{ .Values.config.logging.errorLog }} {{ .Values.config.logging.level }};
+    pid        /var/run/nginx.pid;
+
+    events {
+        worker_connections  {{ .Values.config.upstream.workerConnections }};
+    }
+
+    http {
+        include       /etc/nginx/mime.types;
+        default_type  application/octet-stream;
+
+        # 日志格式增加上游响应时间，便于排查模型慢请求
+        log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                          '$status $body_bytes_sent "$http_referer" '
+                          '"$http_user_agent" "$http_x_forwarded_for" '
+                          'upstream: $upstream_addr, time: $upstream_response_time';
+
+        access_log  {{ .Values.config.logging.accessLog }}  main;
+
+        sendfile        on;
+        tcp_nopush      on;
+        tcp_nodelay     on;
+        keepalive_timeout  65;
+        types_hash_max_size 2048;
+
+        # 全局文件上传限制
+        client_max_body_size {{ .Values.config.clientMaxBodySize }};
+
+        # --- 1. 定义语言模型 (LLM) 后端集群 ---
+        upstream vllm_llm_backend {
+            least_conn;
+
+            {{- range .Values.config.llmBackends }}
+            server {{ .host }}:{{ .port }} max_fails={{ .Values.config.upstream.maxFails }} fail_timeout={{ .Values.config.upstream.failTimeout }}; {{ .name | default "" }}
+            {{- end }}
+
+            keepalive {{ .Values.config.upstream.keepalive }};
+        }
+
+        # --- 2. 定义 Embedding 模型后端集群 ---
+        upstream vllm_embed_backend {
+            least_conn;
+
+            {{- range .Values.config.embedBackends }}
+            server {{ .host }}:{{ .port }} max_fails={{ .Values.config.upstream.maxFails }} fail_timeout={{ .Values.config.upstream.failTimeout }}; {{ .name | default "" }}
+            {{- end }}
+
+            keepalive {{ .Values.config.upstream.keepalive }};
+        }
+
+        server {
+            listen       {{ .Values.service.port }};
+            server_name  _;
+
+            # --- 3. 语言模型 API 路由 (支持流式) ---
+            location /v1/chat/completions {
+                proxy_pass http://vllm_llm_backend;
+
+                proxy_next_upstream error timeout http_502 http_503 http_504;
+                proxy_next_upstream_tries 2;
+                proxy_next_upstream_timeout 120s;
+
+                # 关键：支持流式输出 (SSE)
+                proxy_buffering off;
+                proxy_cache off;
+                chunked_transfer_encoding on;
+
+                # 关键：长超时设置
+                proxy_connect_timeout {{ .Values.config.timeouts.connect }};
+                proxy_send_timeout {{ .Values.config.timeouts.send }};
+                proxy_read_timeout {{ .Values.config.timeouts.read }};
+
+                # 传递必要头部
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header Authorization $http_authorization;
+
+                # 长连接优化
+                proxy_http_version 1.1;
+                proxy_set_header Connection "";
+            }
+
+            # 兼容 /v1/completions 接口
+            location /v1/completions {
+                proxy_pass http://vllm_llm_backend;
+
+                proxy_next_upstream error timeout http_502 http_503 http_504;
+                proxy_next_upstream_tries 2;
+                proxy_next_upstream_timeout 120s;
+
+                proxy_buffering off;
+                proxy_cache off;
+                proxy_read_timeout {{ .Values.config.timeouts.read }};
+
+                proxy_set_header Host $host;
+                proxy_set_header Authorization $http_authorization;
+                proxy_http_version 1.1;
+                proxy_set_header Connection "";
+            }
+
+            # --- 4. Embedding 模型 API 路由 ---
+            location /v1/embeddings {
+                proxy_pass http://vllm_embed_backend;
+
+                proxy_next_upstream error timeout http_502 http_503 http_504;
+                proxy_next_upstream_tries 2;
+                proxy_next_upstream_timeout 120s;
+
+                proxy_buffering on;
+                proxy_read_timeout 60s;
+
+                proxy_set_header Host $host;
+                proxy_set_header Authorization $http_authorization;
+                proxy_http_version 1.1;
+                proxy_set_header Connection "";
+            }
+
+            # --- 5. 健康检查接口 ---
+            location /health {
+                proxy_pass http://vllm_llm_backend;
+                proxy_connect_timeout {{ .Values.config.healthTimeout }};
+                proxy_read_timeout {{ .Values.config.healthTimeout }};
+                access_log off;
+            }
+
+            # 默认根路径
+            location / {
+                return 404 "Use /v1/chat/completions or /v1/embeddings\n";
+                add_header Content-Type text/plain;
+            }
+        }
+    }

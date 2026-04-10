@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: model-gateway
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: model-gateway
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: model-gateway
+  template:
+    metadata:
+      labels:
+        app: model-gateway
+        release: {{ .Release.Name }}
+    spec:
+      # initContainer 校验 nginx.conf 配置
+      initContainers:
+      - name: nginx-config-test
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        command:
+        - sh
+        - -c
+        - |
+          echo "Testing nginx configuration..."
+          nginx -t -c /etc/nginx/nginx.conf
+          if [ $? -eq 0 ]; then
+            echo "Nginx configuration test passed"
+          else
+            echo "Nginx configuration test FAILED"
+            exit 1
+          fi
+        volumeMounts:
+        - name: nginx-conf
+          mountPath: /etc/nginx
+          readOnly: true
+        resources:
+          limits:
+            cpu: 100m
+            memory: 64Mi
+          requests:
+            cpu: 50m
+            memory: 32Mi
+
+      containers:
+      - name: nginx
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.service.port }}
+          protocol: TCP
+
+        # 配置热加载 - 启动时自动 reload
+        lifecycle:
+          postStart:
+            exec:
+              command:
+              - sh
+              - -c
+              - |
+                echo "Reloading nginx configuration..."
+                sleep 2
+                nginx -s reload || true
+
+        volumeMounts:
+        - name: nginx-conf
+          mountPath: /etc/nginx
+          readOnly: true
+
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.service.port }}
+          initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.service.port }}
+          initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+
+      volumes:
+      - name: nginx-conf
+        configMap:
+          name: model-gateway-nginx-conf

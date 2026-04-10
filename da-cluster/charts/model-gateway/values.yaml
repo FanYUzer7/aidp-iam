@@ -1,0 +1,82 @@
+# Default values for model-gateway
+
+image:
+  repository: nginx
+  tag: alpine
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 30011
+  name: model-gateway
+
+# Nginx 配置
+config:
+  # LLM 后端服务器列表
+  llmBackends:
+    - host: "80.10.2.252"
+      port: 9015
+      name: "qwen3-30b"
+    - host: "80.10.79.121"
+      port: 9015
+      name: "qwen3-235b"
+
+  # Embedding 后端服务器列表
+  embedBackends:
+    - host: "80.10.1.42"
+      port: 9981
+      name: "embed-1"
+    - host: "80.10.1.42"
+      port: 9982
+      name: "embed-2"
+
+  # 超时配置
+  timeouts:
+    connect: 10s
+    send: 600s
+    read: 600s
+
+  # 健康检查超时
+  healthTimeout: 5s
+
+  # 文件上传大小限制
+  clientMaxBodySize: 50M
+
+  # upstream 配置
+  upstream:
+    maxFails: 3
+    failTimeout: 30s
+    keepalive: 32
+    workerConnections: 4096
+
+  # 日志配置
+  logging:
+    accessLog: "/var/log/nginx/access.log"
+    errorLog: "/var/log/nginx/error.log"
+    level: "notice"
+
+# 资源限制
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# 健康检查
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 30011
+  initialDelaySeconds: 10
+  periodSeconds: 30
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 30011
+  initialDelaySeconds: 5
+  periodSeconds: 10
