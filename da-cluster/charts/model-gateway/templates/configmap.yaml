@@ -46,7 +46,7 @@ data:
 
             {{- $upstream := .Values.config.upstream | default (dict "maxFails" 3 "failTimeout" "30s" "keepalive" 32) }}
             {{- range .Values.config.llmBackends }}
-            server {{ .host }}:{{ .port }} max_fails={{ $upstream.maxFails }} fail_timeout={{ $upstream.failTimeout }}; {{ .name | default "" }}
+            server {{ .host }}:{{ .port }} max_fails={{ $upstream.maxFails }} fail_timeout={{ $upstream.failTimeout }}; {{ with .name }}# {{ . }}{{ end }}
             {{- end }}
 
             keepalive {{ $upstream.keepalive }};
@@ -57,7 +57,7 @@ data:
             least_conn;
 
             {{- range .Values.config.embedBackends }}
-            server {{ .host }}:{{ .port }} max_fails={{ $upstream.maxFails }} fail_timeout={{ $upstream.failTimeout }}; {{ .name | default "" }}
+            server {{ .host }}:{{ .port }} max_fails={{ $upstream.maxFails }} fail_timeout={{ $upstream.failTimeout }}; {{ with .name }}# {{ . }}{{ end }}
             {{- end }}
 
             keepalive {{ $upstream.keepalive }};
