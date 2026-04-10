@@ -36,7 +36,8 @@ spec:
           fi
         volumeMounts:
         - name: nginx-conf
-          mountPath: /etc/nginx
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
           readOnly: true
         resources:
           limits:
@@ -69,7 +70,8 @@ spec:
 
         volumeMounts:
         - name: nginx-conf
-          mountPath: /etc/nginx
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
           readOnly: true
 
         livenessProbe:
