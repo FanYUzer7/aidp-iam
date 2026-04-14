@@ -49,7 +49,7 @@ config:
     maxFails: 3
     failTimeout: 30s
     keepalive: 32
-    workerConnections: 40
+    workerConnections: 100
 
   # 日志配置
   logging:
