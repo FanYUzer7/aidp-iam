@@ -26,12 +26,12 @@ RUN printf '%s\n' \
     '#!/bin/bash' \
     'set -e' \
     '# 如果 ~/.ahvn 不存在配置，则运行初始化' \
-    'if [ ! -f "$HOME/.ahvn/config.db" ]; then' \
+    'if [ ! -f "$HOME/.ahvn/entry.yaml" ]; then' \
     '    echo "Initializing ahvn config..."' \
     '    ahvn setup -r' \
     'fi' \
     '# 如果 ~/.rubiksql 不存在配置，则运行初始化' \
-    'if [ ! -f "$HOME/.rubiksql/config.db" ]; then' \
+    'if [ ! -f "$HOME/.rubiksql/entry.yaml" ]; then' \
     '    echo "Initializing rubiksql config..."' \
     '    rubiksql setup -r' \
     'fi' \
